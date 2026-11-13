@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ASTRA — 3D Experience</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@300;400&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --linen:    #FAF8F3;
+    --linen-dk: #F0EBE0;
+    --gold:     #C9A96E;
+    --terra:    #C4714A;
+    --sage:     #8A9E8C;
+    --ink:      #1A1814;
+    --ink-50:   rgba(26,24,20,0.5);
+  }
+
+  html { scroll-behavior: auto; }
+
+  body {
+    background: var(--linen);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    font-weight: 300;
+    overflow-x: hidden;
+  }
+
+  /* noise overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    background-size: 200px 200px;
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.6;
+  }
+
+  /* ── CANVAS ── */
+  #bg {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2rem 4rem;
+    mix-blend-mode: multiply;
+  }
+
+  .logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.1rem;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 3rem;
+    list-style: none;
+  }
+
+  .nav-links a {
+    text-decoration: none;
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-50);
+    transition: color 0.3s;
+  }
+  .nav-links a:hover { color: var(--ink); }
+
+  /* ── SECTIONS ── */
+  section {
+    position: relative;
+    z-index: 10;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    padding: 10vh 4rem;
+  }
+
+  /* ── HERO ── */
+  #hero {
+    flex-direction: column;
+    justify-content: center;
+    padding-top: 15vh;
+    pointer-events: none;
+  }
+
+  .hero-eyebrow {
+    font-size: 0.7rem;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 2rem;
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(4rem, 10vw, 9rem);
+    font-weight: 300;
+    line-height: 0.9;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    max-width: 14ch;
+  }
+
+  h1 em {
+    font-style: italic;
+    color: var(--gold);
+  }
+
+  .hero-sub {
+    margin-top: 3rem;
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    color: var(--ink-50);
+    max-width: 32ch;
+    line-height: 1.8;
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  .hero-scroll {
+    position: absolute;
+    bottom: 3rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.65rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--ink-50);
+    opacity: 0;
+  }
+
+  .scroll-line {
+    width: 1px;
+    height: 48px;
+    background: linear-gradient(to bottom, var(--gold), transparent);
+    animation: pulse-line 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-line {
+    0%, 100% { opacity: 0.4; transform: scaleY(1); }
+    50% { opacity: 1; transform: scaleY(1.1); }
+  }
+
+  /* ── MARQUEE ── */
+  .marquee-wrap {
+    position: relative;
+    z-index: 10;
+    overflow: hidden;
+    padding: 2.5rem 0;
+    border-top: 1px solid rgba(26,24,20,0.1);
+    border-bottom: 1px solid rgba(26,24,20,0.1);
+    background: var(--linen-dk);
+  }
+
+  .marquee-track {
+    display: flex;
+    white-space: nowrap;
+    animation: marquee 18s linear infinite;
+  }
+
+  .marquee-item {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(2rem, 4vw, 3.5rem);
+    font-weight: 300;
+    font-style: italic;
+    color: var(--ink);
+    padding: 0 3rem;
+    flex-shrink: 0;
+  }
+
+  .marquee-dot {
+    color: var(--gold);
+    padding: 0 1rem;
+    font-style: normal;
+  }
+
+  @keyframes marquee {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  /* ── FEATURE GRID ── */
+  #features {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    padding: 0;
+    min-height: auto;
+    align-items: stretch;
+  }
+
+  .feat-cell {
+    padding: 6rem 4rem;
+    border: 1px solid rgba(26,24,20,0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    opacity: 0;
+    transform: translateY(40px);
+    transition: background 0.4s;
+  }
+
+  .feat-cell:hover { background: rgba(201,169,110,0.06); }
+
+  .feat-num {
+    font-size: 0.65rem;
+    letter-spacing: 0.3em;
+    color: var(--gold);
+  }
+
+  .feat-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(1.6rem, 3vw, 2.4rem);
+    font-weight: 400;
+    line-height: 1.1;
+  }
+
+  .feat-body {
+    font-size: 0.82rem;
+    line-height: 1.9;
+    color: var(--ink-50);
+    max-width: 36ch;
+  }
+
+  .feat-tag {
+    display: inline-block;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    border: 1px solid rgba(201,169,110,0.4);
+    color: var(--gold);
+    padding: 0.4em 0.9em;
+    align-self: flex-start;
+  }
+
+  /* ── CANVAS SECTION ── */
+  #canvas-section {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3rem;
+    padding: 10vh 4rem;
+  }
+
+  .section-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: var(--gold);
+  }
+
+  h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(2.5rem, 6vw, 5rem);
+    font-weight: 300;
+    line-height: 1.0;
+    max-width: 18ch;
+    opacity: 0;
+    transform: translateY(30px);
+  }
+
+  h2 em { font-style: italic; }
+
+  .body-copy {
+    font-size: 0.85rem;
+    line-height: 1.9;
+    color: var(--ink-50);
+    max-width: 46ch;
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  /* ── STATS ROW ── */
+  .stats-row {
+    display: flex;
+    gap: 6rem;
+    padding: 6rem 4rem;
+    border-top: 1px solid rgba(26,24,20,0.08);
+    position: relative;
+    z-index: 10;
+  }
+
+  .stat {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  .stat-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(3rem, 6vw, 5rem);
+    font-weight: 300;
+    color: var(--ink);
+    line-height: 1;
+  }
+
+  .stat-label {
+    font-size: 0.72rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-50);
+    margin-top: 0.5rem;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    position: relative;
+    z-index: 10;
+    padding: 4rem;
+    border-top: 1px solid rgba(26,24,20,0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .footer-logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2rem;
+    font-weight: 300;
+    letter-spacing: 0.2em;
+  }
+
+  .footer-copy {
+    font-size: 0.72rem;
+    color: var(--ink-50);
+    letter-spacing: 0.08em;
+  }
+
+  /* ── CURSOR ── */
+  .cursor {
+    position: fixed;
+    top: 0; left: 0;
+    width: 8px; height: 8px;
+    background: var(--gold);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9999;
+    transform: translate(-50%, -50%);
+    transition: width 0.2s, height 0.2s, opacity 0.2s;
+    mix-blend-mode: multiply;
+  }
+
+  .cursor-ring {
+    position: fixed;
+    top: 0; left: 0;
+    width: 36px; height: 36px;
+    border: 1px solid rgba(201,169,110,0.5);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9998;
+    transform: translate(-50%, -50%);
+    transition: transform 0.12s ease-out, width 0.3s, height 0.3s;
+    mix-blend-mode: multiply;
+  }
+
+  @media (max-width: 768px) {
+    nav { padding: 1.5rem 2rem; }
+    .nav-links { display: none; }
+    section { padding: 8vh 2rem; }
+    #features { grid-template-columns: 1fr; }
+    .feat-cell { padding: 4rem 2rem; }
+    .stats-row { flex-direction: column; gap: 3rem; padding: 4rem 2rem; }
+    footer { flex-direction: column; gap: 2rem; text-align: center; }
+    .cursor, .cursor-ring { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="bg"></canvas>
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursor-ring"></div>
+
+<nav>
+  <span class="logo">Astra</span>
+  <ul class="nav-links">
+    <li><a href="#features">Work</a></li>
+    <li><a href="#canvas-section">About</a></li>
+    <li><a href="#">Contact</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <p class="hero-eyebrow">Three.js · GSAP · WebGL</p>
+  <h1 id="hero-title">The<br/><em>Dimension</em><br/>Beyond Flat</h1>
+  <p class="hero-sub">
+    Interactive 3D for the modern web. Scroll, explore, and feel
+    what the browser is capable of.
+  </p>
+  <div class="hero-scroll">
+    <div class="scroll-line"></div>
+    <span>Scroll</span>
+  </div>
+</section>
+
+<!-- MARQUEE -->
+<div class="marquee-wrap">
+  <div class="marquee-track" id="marquee-track">
+    <span class="marquee-item">Three.js</span><span class="marquee-dot">·</span>
+    <span class="marquee-item">GSAP ScrollTrigger</span><span class="marquee-dot">·</span>
+    <span class="marquee-item">WebGL Shaders</span><span class="marquee-dot">·</span>
+    <span class="marquee-item">Lenis Smooth Scroll</span><span class="marquee-dot">·</span>
+    <span class="marquee-item">Procedural Geometry</span><span class="marquee-dot">·</span>
+    <span class="marquee-item">Particle Systems</span><span class="marquee-dot">·</span>
+    <span class="marquee-item">Three.js</span><span class="marquee-dot">·</span>
+    <span class="marquee-item">GSAP ScrollTrigger</span><span class="marquee-dot">·</span>
+    <span class="marquee-item">WebGL Shaders</span><span class="marquee-dot">·</span>
+    <span class="marquee-item">Lenis Smooth Scroll</span><span class="marquee-dot">·</span>
+    <span class="marquee-item">Procedural Geometry</span><span class="marquee-dot">·</span>
+    <span class="marquee-item">Particle Systems</span><span class="marquee-dot">·</span>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="feat-cell">
+    <span class="feat-num">01</span>
+    <h3 class="feat-title" style="font-family:'Cormorant Garamond',serif;font-size:clamp(1.6rem,3vw,2.4rem);font-weight:400;line-height:1.1">Scroll-Driven<br/>Narratives</h3>
+    <p class="feat-body">Every scroll position maps to a story beat. GSAP ScrollTrigger scrubs geometry, opacity, and camera — turning a webpage into a cinematic sequence.</p>
+    <span class="feat-tag">ScrollTrigger</span>
+  </div>
+  <div class="feat-cell">
+    <span class="feat-num">02</span>
+    <h3 class="feat-title" style="font-family:'Cormorant Garamond',serif;font-size:clamp(1.6rem,3vw,2.4rem);font-weight:400;line-height:1.1">Custom<br/>GLSL Shaders</h3>
+    <p class="feat-body">Raw vertex and fragment shaders applied directly to geometry. Displacement maps, fresnel glow, and animated noise — written from scratch, nothing borrowed.</p>
+    <span class="feat-tag">WebGL</span>
+  </div>
+  <div class="feat-cell">
+    <span class="feat-num">03</span>
+    <h3 class="feat-title" style="font-family:'Cormorant Garamond',serif;font-size:clamp(1.6rem,3vw,2.4rem);font-weight:400;line-height:1.1">Particle<br/>Field Systems</h3>
+    <p class="feat-body">Ten thousand points rendered as a breathing cloud. Each particle responds to cursor proximity, forming organic shapes that feel alive rather than decorative.</p>
+    <span class="feat-tag">Points</span>
+  </div>
+  <div class="feat-cell">
+    <span class="feat-num">04</span>
+    <h3 class="feat-title" style="font-family:'Cormorant Garamond',serif;font-size:clamp(1.6rem,3vw,2.4rem);font-weight:400;line-height:1.1">60fps on<br/>Any Device</h3>
+    <p class="feat-body">Instanced meshes, frustum culling, and adaptive pixel ratio keep the renderer efficient. Desktop WebGPU ready; mobile falls back gracefully to WebGL 2.0.</p>
+    <span class="feat-tag">Performance</span>
+  </div>
+</section>
+
+<!-- CANVAS SECTION -->
+<section id="canvas-section">
+  <span class="section-label">The Stack</span>
+  <h2>Built on<br/><em>modern</em><br/>primitives</h2>
+  <p class="body-copy">
+    Three.js handles the scene graph and renderer. GSAP owns every
+    animation timeline. Lenis delivers sub-pixel smooth scroll. Together
+    they form a stack that feels native, not bolted-on.
+  </p>
+</section>
+
+<!-- STATS -->
+<div class="stats-row">
+  <div class="stat">
+    <div class="stat-num">60</div>
+    <div class="stat-label">Frames per second</div>
+  </div>
+  <div class="stat">
+    <div class="stat-num">10k</div>
+    <div class="stat-label">Live particles</div>
+  </div>
+  <div class="stat">
+    <div class="stat-num">0ms</div>
+    <div class="stat-label">Layout shift</div>
+  </div>
+  <div class="stat">
+    <div class="stat-num">∞</div>
+    <div class="stat-label">Scroll depth</div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <span class="footer-logo">Astra</span>
+  <span class="footer-copy">Three.js · GSAP · WebGL — 2026</span>
+</footer>
+
+<!-- THREE.JS + GSAP via CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+
+<script>
+gsap.registerPlugin(ScrollTrigger);
+
+/* ─── LENIS SMOOTH SCROLL (inline, no CDN dep) ─── */
+class Lenis {
+  constructor({ lerp = 0.1 } = {}) {
+    this.lerp = lerp;
+    this.current = 0;
+    this.target = 0;
+    this.raf = null;
+    this._onScroll = this._onScroll.bind(this);
+    window.addEventListener('wheel', this._onScroll, { passive: false });
+    window.addEventListener('touchmove', this._onScroll, { passive: false });
+    this._tick();
+  }
+  _onScroll(e) {
+    const delta = e.deltaY || (e.touches ? e.touches[0].clientY * -1 : 0);
+    this.target = Math.max(0, Math.min(this.target + delta, document.body.scrollHeight - window.innerHeight));
+    e.preventDefault();
+  }
+  _tick() {
+    this.current += (this.target - this.current) * this.lerp;
+    if (Math.abs(this.current - this.target) < 0.01) this.current = this.target;
+    window.scrollTo(0, this.current);
+    ScrollTrigger.update();
+    this.raf = requestAnimationFrame(() => this._tick());
+  }
+  destroy() {
+    cancelAnimationFrame(this.raf);
+    window.removeEventListener('wheel', this._onScroll);
+  }
+}
+
+const lenis = new Lenis({ lerp: 0.09 });
+
+/* ─── THREE.JS SETUP ─── */
+const canvas = document.getElementById('bg');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x000000, 0);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(0, 0, 5);
+
+/* ─── LIGHTING ─── */
+const ambient = new THREE.AmbientLight(0xFAF8F3, 0.6);
+scene.add(ambient);
+
+const keyLight = new THREE.DirectionalLight(0xC9A96E, 1.2);
+keyLight.position.set(5, 8, 5);
+scene.add(keyLight);
+
+const fillLight = new THREE.DirectionalLight(0x8A9E8C, 0.5);
+fillLight.position.set(-5, -3, 3);
+scene.add(fillLight);
+
+/* ─── CUSTOM SHADER MATERIAL ─── */
+const lineMat = new THREE.ShaderMaterial({
+  uniforms: {
+    uTime:    { value: 0 },
+    uColor1:  { value: new THREE.Color(0xC9A96E) },
+    uColor2:  { value: new THREE.Color(0xC4714A) },
+    uFresnelPow: { value: 3.5 },
+  },
+  vertexShader: `
+    uniform float uTime;
+    varying vec3 vNormal;
+    varying vec3 vPos;
+    void main() {
+      vNormal = normalize(normalMatrix * normal);
+      vec3 p = position;
+      p += normal * sin(p.x * 4.0 + uTime) * 0.04;
+      vPos = p;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform vec3 uColor1;
+    uniform vec3 uColor2;
+    uniform float uFresnelPow;
+    varying vec3 vNormal;
+    varying vec3 vPos;
+    void main() {
+      vec3 viewDir = normalize(cameraPosition - vPos);
+      float fresnel = pow(1.0 - dot(vNormal, viewDir), uFresnelPow);
+      vec3 col = mix(uColor2, uColor1, fresnel);
+      gl_FragColor = vec4(col, 0.85 + fresnel * 0.15);
+    }
+  `,
+  transparent: true,
+  side: THREE.DoubleSide,
+});
+
+/* ─── MAIN GEOMETRY — ICOSAHEDRON ─── */
+const icoGeo = new THREE.IcosahedronGeometry(1.3, 2);
+const ico = new THREE.Mesh(icoGeo, lineMat);
+ico.position.set(2.5, 0.5, 0);
+scene.add(ico);
+
+/* ─── WIREFRAME RING ─── */
+const torusGeo = new THREE.TorusGeometry(1.8, 0.012, 8, 120);
+const torusMat = new THREE.MeshBasicMaterial({ color: 0xC9A96E, transparent: true, opacity: 0.35 });
+const torus = new THREE.Mesh(torusGeo, torusMat);
+torus.rotation.x = Math.PI / 3;
+torus.position.set(2.5, 0.5, 0);
+scene.add(torus);
+
+/* ─── SECONDARY SPHERE ─── */
+const sphereGeo = new THREE.SphereGeometry(0.6, 32, 32);
+const sphereMat = new THREE.MeshStandardMaterial({
+  color: 0x8A9E8C,
+  roughness: 0.3,
+  metalness: 0.4,
+  transparent: true,
+  opacity: 0.75,
+});
+const sphere = new THREE.Mesh(sphereGeo, sphereMat);
+sphere.position.set(-2.8, -0.8, -1);
+scene.add(sphere);
+
+/* ─── PARTICLES ─── */
+const COUNT = 10000;
+const positions = new Float32Array(COUNT * 3);
+const colors    = new Float32Array(COUNT * 3);
+const basePos   = new Float32Array(COUNT * 3);
+
+const palette = [
+  new THREE.Color(0xC9A96E),
+  new THREE.Color(0xC4714A),
+  new THREE.Color(0x8A9E8C),
+  new THREE.Color(0x1A1814),
+];
+
+for (let i = 0; i < COUNT; i++) {
+  const r = 7 * Math.cbrt(Math.random());
+  const theta = Math.random() * Math.PI * 2;
+  const phi   = Math.acos(2 * Math.random() - 1);
+  const x = r * Math.sin(phi) * Math.cos(theta);
+  const y = r * Math.sin(phi) * Math.sin(theta);
+  const z = r * Math.cos(phi) - 2;
+
+  positions[i*3]   = basePos[i*3]   = x;
+  positions[i*3+1] = basePos[i*3+1] = y;
+  positions[i*3+2] = basePos[i*3+2] = z;
+
+  const c = palette[Math.floor(Math.random() * palette.length)];
+  colors[i*3]   = c.r;
+  colors[i*3+1] = c.g;
+  colors[i*3+2] = c.b;
+}
+
+const pGeo = new THREE.BufferGeometry();
+pGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+pGeo.setAttribute('color',    new THREE.BufferAttribute(colors, 3));
+
+const pMat = new THREE.PointsMaterial({
+  size: 0.018,
+  vertexColors: true,
+  transparent: true,
+  opacity: 0.6,
+  sizeAttenuation: true,
+});
+
+const particles = new THREE.Points(pGeo, pMat);
+scene.add(particles);
+
+/* ─── MOUSE ─── */
+const mouse = { x: 0, y: 0, lx: 0, ly: 0 };
+document.addEventListener('mousemove', e => {
+  mouse.x = (e.clientX / window.innerWidth)  * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+});
+
+/* ─── CUSTOM CURSOR ─── */
+const $cursor = document.getElementById('cursor');
+const $ring   = document.getElementById('cursor-ring');
+let cx = 0, cy = 0, rx = 0, ry = 0;
+
+document.addEventListener('mousemove', e => {
+  cx = e.clientX; cy = e.clientY;
+});
+
+function animateCursor() {
+  rx += (cx - rx) * 0.12;
+  ry += (cy - ry) * 0.12;
+  $cursor.style.left = cx + 'px';
+  $cursor.style.top  = cy + 'px';
+  $ring.style.left   = rx + 'px';
+  $ring.style.top    = ry + 'px';
+  requestAnimationFrame(animateCursor);
+}
+animateCursor();
+
+/* ─── SCROLL-DRIVEN CAMERA ─── */
+const camTarget = { y: 0 };
+ScrollTrigger.create({
+  start: 'top top',
+  end: 'bottom bottom',
+  onUpdate: self => {
+    camTarget.y = self.progress * -6;
+  },
+});
+
+/* ─── RENDER LOOP ─── */
+const clock = new THREE.Clock();
+
+function render() {
+  const t = clock.getElapsedTime();
+
+  lineMat.uniforms.uTime.value = t;
+
+  /* parallax camera */
+  mouse.lx += (mouse.x - mouse.lx) * 0.05;
+  mouse.ly += (mouse.y - mouse.ly) * 0.05;
+  camera.position.x += (mouse.lx * 0.4 - camera.position.x) * 0.05;
+  camera.position.y += (camTarget.y + mouse.ly * 0.4 - camera.position.y) * 0.05;
+  camera.lookAt(0, camTarget.y, 0);
+
+  /* rotate shapes */
+  ico.rotation.x = t * 0.18;
+  ico.rotation.y = t * 0.22;
+  torus.rotation.z = t * 0.14;
+  sphere.rotation.y = t * 0.3;
+  sphere.position.y = -0.8 + Math.sin(t * 0.7) * 0.2;
+
+  /* breathe particles */
+  const pos = pGeo.attributes.position.array;
+  for (let i = 0; i < COUNT; i++) {
+    const bx = basePos[i*3], by = basePos[i*3+1], bz = basePos[i*3+2];
+    const wave = Math.sin(t * 0.5 + bx * 0.3 + by * 0.3) * 0.06;
+    pos[i*3+1] = by + wave;
+  }
+  pGeo.attributes.position.needsUpdate = true;
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(render);
+}
+render();
+
+/* ─── RESIZE ─── */
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+/* ─── GSAP INTRO ─── */
+const tl = gsap.timeline({ delay: 0.3 });
+tl.to('.hero-eyebrow', { opacity: 1, y: 0, duration: 1,   ease: 'power3.out' })
+  .from('#hero-title',  { opacity: 0, y: 60, duration: 1.4, ease: 'power4.out', stagger: 0.1 }, '-=0.5')
+  .to('.hero-sub',      { opacity: 1, y: 0, duration: 1,   ease: 'power3.out' }, '-=0.6')
+  .to('.hero-scroll',   { opacity: 1, duration: 0.8 }, '-=0.2');
+
+/* ─── SCROLL REVEALS ─── */
+gsap.utils.toArray('.feat-cell').forEach((el, i) => {
+  gsap.to(el, {
+    opacity: 1, y: 0, duration: 0.9, ease: 'power3.out',
+    delay: i * 0.1,
+    scrollTrigger: { trigger: el, start: 'top 85%' },
+  });
+});
+
+gsap.to('h2', {
+  opacity: 1, y: 0, duration: 1.1, ease: 'power3.out',
+  scrollTrigger: { trigger: 'h2', start: 'top 80%' },
+});
+
+gsap.to('.body-copy', {
+  opacity: 1, y: 0, duration: 0.9, ease: 'power3.out',
+  scrollTrigger: { trigger: '.body-copy', start: 'top 80%' },
+});
+
+gsap.utils.toArray('.stat').forEach((el, i) => {
+  gsap.to(el, {
+    opacity: 1, y: 0, duration: 0.8, ease: 'power3.out',
+    delay: i * 0.12,
+    scrollTrigger: { trigger: '.stats-row', start: 'top 80%' },
+  });
+});
+</script>
+</body>
+</html>
